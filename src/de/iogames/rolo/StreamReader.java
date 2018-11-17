@@ -1,59 +1,66 @@
 package de.iogames.rolo;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.Charset;
 
 /**
  * Reading the network stream and transforming what we read.
  */
 public class StreamReader {
-    protected InputStream mInputStream;
+    /**
+     * Max lines to parse.
+     */
+    private static int MAX_LINES = 40096;
 
-    ByteArrayOutputStream mByteArrayOutputStream;
+    protected InputStream mInputStream;
 
     public StreamReader(InputStream inputStream) {
         mInputStream = inputStream;
     }
 
-    public void read() {
-        mByteArrayOutputStream = new ByteArrayOutputStream();
+    public NetworkPacket read() throws IOException {
+        byte[] inputBuffer = new byte[32000];
+        int readBytes = mInputStream.read(inputBuffer, 0, 32000);
+        ByteBuffer inputByteBuffer = ByteBuffer.wrap(inputBuffer).order(ByteOrder.LITTLE_ENDIAN);
 
-        byte[] read = new byte[1024];
-        int len;
+        if (readBytes > 0) {
+            return parseIncommingData(inputByteBuffer);
+        }
 
-        try {
-            if ((len = mInputStream.read(read)) > -1) {
-                mByteArrayOutputStream.write(read, 0, len);
+        return null;
+    }
+
+    private NetworkPacket parseIncommingData(ByteBuffer data) {
+        NetworkPacket networkPacket = new NetworkPacket();
+        networkPacket.size = data.getInt(PacketFormat.BYTESTART_SIZE);
+        networkPacket.id = data.getInt(PacketFormat.BYTESTART_ID);
+        networkPacket.type = data.getInt(PacketFormat.BYTESTART_TYPE);
+
+        if (networkPacket.size >= 32000) {
+            System.out.println(String.format("Ignoring packet indicating size of: '%d' bytes", networkPacket.size));
+            return null;
+        }
+
+        ByteBuffer trimmedResponse = ByteBuffer.allocate(data.capacity());
+
+        for (int i = 12; i < MAX_LINES; i++) {
+            if (data.get(i) == '\000') {
+                break;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
-    public String getHexString() {
-        // this is the final byte array which contains the data
-        // read from Socket
-        byte[] bytes = mByteArrayOutputStream.toByteArray();
-
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02X ", b));
+            trimmedResponse.put(data.get(i));
         }
 
-        return sb.toString();
-    }
+        networkPacket.content = new String(
+                trimmedResponse.array(),
+                0,
+                networkPacket.size - 10,
+                Charset.defaultCharset()
+        );
 
-    public ArrayList<String> getHexStringAsArray() {
-        byte[] bytes = mByteArrayOutputStream.toByteArray();
-
-        ArrayList<String> hexArray = new ArrayList<>();
-
-        for (byte b : bytes) {
-            hexArray.add(String.format("%02X ", b));
-        }
-
-        return hexArray;
+        return networkPacket;
     }
 }

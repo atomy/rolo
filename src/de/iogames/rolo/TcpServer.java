@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 
 public class TcpServer implements Runnable {
     ServerSocket mServerSocket;
@@ -13,7 +14,7 @@ public class TcpServer implements Runnable {
     @Override
     public void run() {
         try {
-            StreamProcess streamProcess = new StreamProcess();
+            ArrayList<Client> clients = new ArrayList<Client>();
             mServerSocket = new ServerSocket(28015);
             System.out.println("Accepting connections");
 
@@ -21,7 +22,10 @@ public class TcpServer implements Runnable {
                 Socket connectionSocket = mServerSocket.accept();
                 System.out.println("New connection from: " + connectionSocket.getInetAddress());
 
-                streamProcess.read(connectionSocket.getInputStream());
+                Client client = new Client(connectionSocket);
+                clients.add(client);
+                Thread thread = new Thread(client);
+                thread.start();
 
 //                DataOutputStream dataOutputStream = new DataOutputStream(connectionSocket.getOutputStream());
 //                String capatalizedSentence = clientSentence.toUpperCase() + 'n';
