@@ -10,9 +10,11 @@ public class StreamProcess {
 
     public static final String STATE_FRESH_CONNECTION = "STATE_FRESH_CONNECTION";
 
-    private static final String HANDSHAKE_EXPECTED_PASSWORD = "tralalalal1234";
+    private static final String HANDSHAKE_EXPECTED_PASSWORD = "admin1337";
 
     private static final String COMMAND_STATUS = "status";
+
+    private static final String COMMAND_PLAYERLIST = "playerlist";
 
     private final Client mClient;
 
@@ -68,6 +70,20 @@ public class StreamProcess {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        } else if (inputCommand.equals(COMMAND_PLAYERLIST)) {
+                try {
+                    if (!mClient.getConnectionSocket().isConnected()) {
+                        System.out.println("Connection socket not longer connected, unable to send reply!");
+                        return;
+                    }
+
+                    mClient.getConnectionSocket().getOutputStream().write(
+                            (new CommandHandler()).getPlayerListCommandReply(packetId)
+                    );
+                    mClient.getConnectionSocket().getOutputStream().flush();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
         } else {
             System.out.println(String.format("Unknown command '%s'!", inputCommand));
         }
